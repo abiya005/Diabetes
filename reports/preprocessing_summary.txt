@@ -1,0 +1,20 @@
+PREPROCESSING AND LEAKAGE-PREVENTION REPORT
+===========================================
+Dataset Source: CDC BRFSS 2015 Diabetes Indicators
+Total Original Observations: 253680
+Train Split: 202944 (80.0%)
+Test Split:  50736 (20.0%)
+Stratification: By Diabetes_binary class (Preserved positive ratio: ~15.76%)
+Random State: 42
+
+Feature Transformations:
+  - Numerical (3 features: ['BMI', 'MentHlth', 'PhysHlth']): Median Imputation + StandardScaler
+  - Ordinal (3 features: ['GenHlth', 'Education', 'Income']): Median Imputation + StandardScaler
+  - Binary (13 features: ['HighBP', 'HighChol', 'CholCheck', 'Smoker', 'Stroke', 'HeartDiseaseorAttack', 'PhysActivity', 'Fruits', 'Veggies', 'HvyAlcoholConsump', 'AnyHealthcare', 'NoDocbcCost', 'DiffWalk']): Most Frequent Imputation (No scaling, preserved as 0/1 indicators)
+  - Demographics (2 features: ['Sex', 'Age']): Median Imputation + StandardScaler for model inputs
+  - Demographic Audit Meta (Sex_Label, Age_Group): Preserved unscaled and unaltered for subgroup fairness evaluation
+
+Data Leakage Safeguards:
+  1. All imputers and scalers fit STRICTLY on training split (X_train_raw).
+  2. Test split (X_test_raw) was held out untouched until final model evaluation.
+  3. Cross-validation applies pipeline transformations strictly within training folds.

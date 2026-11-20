@@ -1,0 +1,7 @@
+Model_1,Model_2,M1_Correct_M2_Incorrect (b),M1_Incorrect_M2_Correct (c),Chi2_Statistic,p_value,Significant_Discordance (p < 0.05),Superior_Model
+XGBoost,Logistic Regression,1381,1846,66.71707468236752,3.1340864082691836e-16,True,Logistic Regression
+XGBoost,Random Forest,965,1329,57.44071490845685,3.483216662925784e-14,True,Random Forest
+Random Forest,Logistic Regression,1587,1688,3.053435114503817,0.08056657112767791,False,Logistic Regression
+SVM,Logistic Regression,10534,4559,2364.5846418869673,0.0,True,SVM
+SVM,Random Forest,10711,4635,2404.901928841392,0.0,True,SVM
+SVM,XGBoost,11263,4823,2577.441315429566,0.0,True,SVM

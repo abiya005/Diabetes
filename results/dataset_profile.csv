@@ -1,0 +1,17 @@
+Metric,Value
+Total Records,253680.0
+Total Input Features,21.0
+Negative Class (0 - No Diabetes),213703.0
+Positive Class (1 - Prediabetes/Diabetes),39977.0
+Positive Class Prevalence (%),15.76
+Total Missing Values,0.0
+Duplicate Records Count,23968.0
+Duplicate Records (%),9.45
+Female Count,141974.0
+Male Count,111706.0
+Female Prevalence (%),14.8
+Male Prevalence (%),16.97
+Age Group 18-34 Count,24421.0
+Age Group 35-49 Count,49799.0
+Age Group 50-64 Count,90390.0
+Age Group 65+ Count,89070.0

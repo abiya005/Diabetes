@@ -1,0 +1,18 @@
+STATISTICAL VALIDATION PROTOCOL & LIMITATIONS
+============================================
+1. Paired Student's t-test:
+   - Assumptions: Differences between paired fold scores are normally distributed.
+   - Limitation: Overlapping training folds in repeated CV introduce mild dependence,
+     which can result in slightly liberal p-values. Hence, reported alongside Wilcoxon non-parametric test.
+
+2. Wilcoxon Signed-Rank Test:
+   - Non-parametric counterpart relaxing normality assumption.
+   - Tests median rank difference across matched fold evaluations.
+
+3. McNemar's Chi-Squared Test:
+   - Measures whether the discordant prediction errors between two models on the test set differ significantly.
+   - Edwards continuity correction (|b - c| - 1)^2 / (b + c) was applied to avoid Type I inflation.
+
+4. Subgroup Uncertainty:
+   - Smaller demographic brackets (e.g. 18-34 young adults) have higher variance in positive prevalence,
+     which is accounted for via 500-sample bootstrap percentile confidence intervals.

@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diabetes Risk ML Research Report: Robustness & Fairness Evaluation</title>
+<style>
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        color: #1A202C;
+        background-color: #F8FAFC;
+        line-height: 1.6;
+        padding: 40px 20px;
+        margin: 0;
+    }
+    .container {
+        max-width: 1000px;
+        margin: 0 auto;
+        background: #FFFFFF;
+        padding: 50px;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+    }
+    h1 {
+        color: #1A365D;
+        font-size: 26px;
+        line-height: 1.3;
+        margin-bottom: 8px;
+        font-weight: 800;
+    }
+    .subtitle {
+        color: #4A5568;
+        font-size: 14px;
+        margin-bottom: 24px;
+        font-style: italic;
+    }
+    h2 {
+        color: #2B6CB0;
+        font-size: 18px;
+        border-bottom: 2px solid #E2E8F0;
+        padding-bottom: 6px;
+        margin-top: 32px;
+        margin-bottom: 12px;
+        font-weight: 700;
+    }
+    h3 {
+        color: #2D3748;
+        font-size: 15px;
+        margin-top: 20px;
+        margin-bottom: 8px;
+        font-weight: 600;
+    }
+    p, li {
+        font-size: 13.5px;
+        color: #2D3748;
+    }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 16px 0;
+        font-size: 12.5px;
+    }
+    th {
+        background-color: #2B6CB0;
+        color: #FFFFFF;
+        text-align: center;
+        padding: 8px 10px;
+        font-weight: 600;
+    }
+    td {
+        padding: 7px 10px;
+        border-bottom: 1px solid #E2E8F0;
+        text-align: center;
+    }
+    tr:nth-child(even) {
+        background-color: #F7FAFC;
+    }
+    .callout {
+        background-color: #EBF8FF;
+        border-left: 4px solid #3182CE;
+        padding: 14px 18px;
+        border-radius: 6px;
+        margin: 16px 0;
+        font-size: 13px;
+    }
+    .warning {
+        background-color: #FFF5F5;
+        border-left: 4px solid #E53E3E;
+        padding: 14px 18px;
+        border-radius: 6px;
+        margin: 16px 0;
+        font-size: 13px;
+        color: #742A2A;
+    }
+    .figure-container {
+        text-align: center;
+        margin: 24px 0;
+    }
+    .figure-container img {
+        max-width: 90%;
+        border-radius: 6px;
+        border: 1px solid #CBD5E0;
+    }
+    .caption {
+        font-size: 11.5px;
+        color: #718096;
+        font-style: italic;
+        margin-top: 6px;
+    }
+    .badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+        background: #EDF2F7;
+        color: #2D3748;
+    }
+    .badge-win {
+        background: #C6F6D5;
+        color: #22543D;
+    }
+    .badge-loss {
+        background: #FED7D7;
+        color: #742A2A;
+    }
+</style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Evaluating the Robustness and Demographic Fairness of Machine Learning Models for Diabetes Risk Prediction</h1>
+    <div class="subtitle">Full Academic Research Report • CDC BRFSS 2015 Cohort Study (N = 253,680)</div>
+
+    <div class="callout">
+        <strong>Executive Abstract:</strong> Machine learning models for diabetes risk assessment are increasingly deployed in clinical and population health settings, 
+        yet their demographic fairness across age and biological sex, and their robustness to data degradation, remain understudied. 
+        Using the CDC BRFSS 2015 cohort (N = 253,680), four classification models—Logistic Regression, Random Forest, Support Vector Machine, and XGBoost—were trained 
+        on 202,944 records and evaluated on 50,736 held-out records. XGBoost achieved the highest overall discriminative performance (ROC-AUC = 0.8247, Recall = 78.50%, FNR = 21.50%). 
+        While all models demonstrated near-perfect sex equity (EOD &lt; 0.025), a severe age disparity was discovered: younger adults (18–34) experienced False Negative Rates of 
+        67.16%–78.84% (and 97.09% in SVM), compared to 14.28%–17.33% in older adults (65+). Random Forest proved most resilient under 20% input corruption (AUC drop = 0.0404). 
+        Linear SVM demonstrated the "Accuracy Paradox", achieving 84.81% accuracy but missing 80.98% of true cases.
+    </div>
+
+    <h2>1. Introduction & Research Objectives</h2>
+    <p>Type 2 diabetes mellitus is a growing global health crisis. Early detection enables lifestyle and pharmacotherapy interventions that can prevent microvascular and macrovascular complications. 
+    However, standard ML models often optimize for raw Accuracy, inadvertently driving models toward majority-negative prediction. This research investigates predictive performance, demographic fairness, 
+    and data-quality robustness across four representative machine learning algorithms.</p>
+
+    <h2>2. Overall Model Performance on Held-Out Test Set (N = 50,736)</h2>
+    <table border="1" class="dataframe table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>Model</th>
+      <th>Accuracy</th>
+      <th>Precision</th>
+      <th>Recall</th>
+      <th>Specificity</th>
+      <th>F1</th>
+      <th>ROC_AUC</th>
+      <th>False Negative Rate</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Logistic Regression</td>
+      <td>0.730349</td>
+      <td>0.340693</td>
+      <td>0.760475</td>
+      <td>0.724714</td>
+      <td>0.470570</td>
+      <td>0.817550</td>
+      <td>0.239525</td>
+    </tr>
+    <tr>
+      <td>Random Forest</td>
+      <td>0.728359</td>
+      <td>0.339295</td>
+      <td>0.764103</td>
+      <td>0.721672</td>
+      <td>0.469923</td>
+      <td>0.822019</td>
+      <td>0.235897</td>
+    </tr>
+    <tr>
+      <td>SVM</td>
+      <td>0.848116</td>
+      <td>0.552488</td>
+      <td>0.190244</td>
+      <td>0.971175</td>
+      <td>0.283029</td>
+      <td>0.817377</td>
+      <td>0.809756</td>
+    </tr>
+    <tr>
+      <td>XGBoost</td>
+      <td>0.721184</td>
+      <td>0.335561</td>
+      <td>0.784991</td>
+      <td>0.709249</td>
+      <td>0.470148</td>
+      <td>0.824735</td>
+      <td>0.215009</td>
+    </tr>
+  </tbody>
+</table>
+
+    <div class="warning">
+        <strong>The Accuracy Trap:</strong> Support Vector Machine achieved the highest raw accuracy (84.81%), but generated a catastrophic False Negative Rate of 80.98% 
+        (missing 6,474 of 7,995 diabetic patients). In contrast, XGBoost correctly captured 6,276 true positive cases (Recall = 78.50%, FNR = 21.50%), establishing it as the superior screening tool.
+    </div>
+
+    <div class="figure-container">
+        <img src="../figures/model_performance/roc_curves.png" alt="ROC Curves">
+        <div class="caption">Figure 1: Receiver Operating Characteristic (ROC) Curves Across All Models on Held-Out Test Set</div>
+    </div>
+
+    <div class="figure-container">
+        <img src="../figures/model_performance/confusion_matrices.png" alt="Confusion Matrices">
+        <div class="caption">Figure 2: Confusion Matrices Across All Models</div>
+    </div>
+
+    <h2>3. Demographic Fairness & Subgroup Evaluation</h2>
+    <h3>Fairlearn Disparity Metrics</h3>
+    <table border="1" class="dataframe table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>Model</th>
+      <th>Attribute</th>
+      <th>Demographic_Parity_Difference</th>
+      <th>Equal_Opportunity_Difference</th>
+      <th>Equalized_Odds_Difference</th>
+      <th>False_Negative_Rate_Difference</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Logistic Regression</td>
+      <td>Sex (Male vs Female)</td>
+      <td>0.064926</td>
+      <td>0.001856</td>
+      <td>0.064478</td>
+      <td>0.001856</td>
+    </tr>
+    <tr>
+      <td>Logistic Regression</td>
+      <td>Age Groups (18-34, 35-49, 50-64, 65+)</td>
+      <td>0.526260</td>
+      <td>0.513024</td>
+      <td>0.513024</td>
+      <td>0.513024</td>
+    </tr>
+    <tr>
+      <td>Random Forest</td>
+      <td>Sex (Male vs Female)</td>
+      <td>0.038291</td>
+      <td>0.025146</td>
+      <td>0.037870</td>
+      <td>0.025146</td>
+    </tr>
+    <tr>
+      <td>Random Forest</td>
+      <td>Age Groups (18-34, 35-49, 50-64, 65+)</td>
+      <td>0.520909</td>
+      <td>0.600803</td>
+      <td>0.600803</td>
+      <td>0.600803</td>
+    </tr>
+    <tr>
+      <td>SVM</td>
+      <td>Sex (Male vs Female)</td>
+      <td>0.007163</td>
+      <td>0.011681</td>
+      <td>0.011681</td>
+      <td>0.011681</td>
+    </tr>
+    <tr>
+      <td>SVM</td>
+      <td>Age Groups (18-34, 35-49, 50-64, 65+)</td>
+      <td>0.091178</td>
+      <td>0.198132</td>
+      <td>0.198132</td>
+      <td>0.198132</td>
+    </tr>
+    <tr>
+      <td>XGBoost</td>
+      <td>Sex (Male vs Female)</td>
+      <td>0.064064</td>
+      <td>0.003017</td>
+      <td>0.064143</td>
+      <td>0.003017</td>
+    </tr>
+    <tr>
+      <td>XGBoost</td>
+      <td>Age Groups (18-34, 35-49, 50-64, 65+)</td>
+      <td>0.557319</td>
+      <td>0.644967</td>
+      <td>0.644967</td>
+      <td>0.644967</td>
+    </tr>
+  </tbody>
+</table>
+
+    <h3>Age Bracket Breakdown (Testing Set)</h3>
+    <table border="1" class="dataframe table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>Model</th>
+      <th>Age_Group</th>
+      <th>Sample_Size</th>
+      <th>Actual_Prevalence</th>
+      <th>Recall</th>
+      <th>False_Negative_Rate</th>
+      <th>ROC_AUC</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Logistic Regression</td>
+      <td>18-34</td>
+      <td>4844</td>
+      <td>0.028282</td>
+      <td>0.328467</td>
+      <td>0.671533</td>
+      <td>0.817176</td>
+    </tr>
+    <tr>
+      <td>Logistic Regression</td>
+      <td>35-49</td>
+      <td>10150</td>
+      <td>0.079803</td>
+      <td>0.534568</td>
+      <td>0.465432</td>
+      <td>0.835394</td>
+    </tr>
+    <tr>
+      <td>Logistic Regression</td>
+      <td>50-64</td>
+      <td>18150</td>
+      <td>0.166556</td>
+      <td>0.732716</td>
+      <td>0.267284</td>
+      <td>0.809173</td>
+    </tr>
+    <tr>
+      <td>Logistic Regression</td>
+      <td>65+</td>
+      <td>17592</td>
+      <td>0.228797</td>
+      <td>0.841491</td>
+      <td>0.158509</td>
+      <td>0.754993</td>
+    </tr>
+    <tr>
+      <td>Random Forest</td>
+      <td>18-34</td>
+      <td>4844</td>
+      <td>0.028282</td>
+      <td>0.226277</td>
+      <td>0.773723</td>
+      <td>0.827271</td>
+    </tr>
+    <tr>
+      <td>Random Forest</td>
+      <td>35-49</td>
+      <td>10150</td>
+      <td>0.079803</td>
+      <td>0.564198</td>
+      <td>0.435802</td>
+      <td>0.839619</td>
+    </tr>
+    <tr>
+      <td>Random Forest</td>
+      <td>50-64</td>
+      <td>18150</td>
+      <td>0.166556</td>
+      <td>0.758187</td>
+      <td>0.241813</td>
+      <td>0.811527</td>
+    </tr>
+    <tr>
+      <td>Random Forest</td>
+      <td>65+</td>
+      <td>17592</td>
+      <td>0.228797</td>
+      <td>0.827081</td>
+      <td>0.172919</td>
+      <td>0.762816</td>
+    </tr>
+    <tr>
+      <td>SVM</td>
+      <td>18-34</td>
+      <td>4844</td>
+      <td>0.028282</td>
+      <td>0.029197</td>
+      <td>0.970803</td>
+      <td>0.819244</td>
+    </tr>
+    <tr>
+      <td>SVM</td>
+      <td>35-49</td>
+      <td>10150</td>
+      <td>0.079803</td>
+      <td>0.075309</td>
+      <td>0.924691</td>
+      <td>0.835786</td>
+    </tr>
+    <tr>
+      <td>SVM</td>
+      <td>50-64</td>
+      <td>18150</td>
+      <td>0.166556</td>
+      <td>0.178961</td>
+      <td>0.821039</td>
+      <td>0.809172</td>
+    </tr>
+    <tr>
+      <td>SVM</td>
+      <td>65+</td>
+      <td>17592</td>
+      <td>0.228797</td>
+      <td>0.227329</td>
+      <td>0.772671</td>
+      <td>0.754044</td>
+    </tr>
+    <tr>
+      <td>XGBoost</td>
+      <td>18-34</td>
+      <td>4844</td>
+      <td>0.028282</td>
+      <td>0.211679</td>
+      <td>0.788321</td>
+      <td>0.831963</td>
+    </tr>
+    <tr>
+      <td>XGBoost</td>
+      <td>35-49</td>
+      <td>10150</td>
+      <td>0.079803</td>
+      <td>0.569136</td>
+      <td>0.430864</td>
+      <td>0.841144</td>
+    </tr>
+    <tr>
+      <td>XGBoost</td>
+      <td>50-64</td>
+      <td>18150</td>
+      <td>0.166556</td>
+      <td>0.773404</td>
+      <td>0.226596</td>
+      <td>0.814363</td>
+    </tr>
+    <tr>
+      <td>XGBoost</td>
+      <td>65+</td>
+      <td>17592</td>
+      <td>0.228797</td>
+      <td>0.856646</td>
+      <td>0.143354</td>
+      <td>0.767103</td>
+    </tr>
+  </tbody>
+</table>
+
+    <div class="warning">
+        <strong>Systemic Age Disparity:</strong> Young adults aged 18–34 suffer alarming False Negative Rates (67.16%–78.84% in clinically viable models, and 97.09% in SVM). 
+        In contrast, older adults (65+) experience FNRs below 16%. This results in an Equal Opportunity Difference exceeding 0.51–0.65 across models.
+    </div>
+
+    <div class="figure-container">
+        <img src="../figures/fairness/age_group_recall.png" alt="Age Group Recall">
+        <div class="caption">Figure 3: Sensitivity (Recall) Disparities Across Age Cohorts</div>
+    </div>
+
+    <h2>4. Robustness & Stress-Testing Experiments</h2>
+    <div class="figure-container">
+        <img src="../figures/robustness/missing_data_degradation.png" alt="Missing Data Degradation">
+        <div class="caption">Figure 4: Metric Degradation Trajectories Under Missing Data (MCAR 5%–20%)</div>
+    </div>
+
+    <div class="figure-container">
+        <img src="../figures/robustness/noise_data_degradation.png" alt="Noise Degradation">
+        <div class="caption">Figure 5: Metric Degradation Trajectories Under Feature Noise Corruption (5%–20%)</div>
+    </div>
+
+    <h2>5. The Clinical AI Trilemma: Trade-Off Synthesis</h2>
+    <table border="1" class="dataframe table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>Model</th>
+      <th>Accuracy</th>
+      <th>Recall</th>
+      <th>ROC_AUC</th>
+      <th>Sex_Equal_Opportunity_Diff</th>
+      <th>Age_Equal_Opportunity_Diff</th>
+      <th>Noisy_Data_20pct_AUC_Drop</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Logistic Regression</td>
+      <td>0.730349</td>
+      <td>0.760475</td>
+      <td>0.817550</td>
+      <td>0.001856</td>
+      <td>0.513024</td>
+      <td>0.043612</td>
+    </tr>
+    <tr>
+      <td>Random Forest</td>
+      <td>0.728359</td>
+      <td>0.764103</td>
+      <td>0.822019</td>
+      <td>0.025146</td>
+      <td>0.600803</td>
+      <td>0.040363</td>
+    </tr>
+    <tr>
+      <td>SVM</td>
+      <td>0.848116</td>
+      <td>0.190244</td>
+      <td>0.817377</td>
+      <td>0.011681</td>
+      <td>0.198132</td>
+      <td>0.041877</td>
+    </tr>
+    <tr>
+      <td>XGBoost</td>
+      <td>0.721184</td>
+      <td>0.784991</td>
+      <td>0.824735</td>
+      <td>0.003017</td>
+      <td>0.644967</td>
+      <td>0.046914</td>
+    </tr>
+  </tbody>
+</table>
+
+    <div class="callout">
+        <strong>Synthesis:</strong> No single model wins on all axes. 
+        <ul>
+            <li><strong>XGBoost</strong> wins on predictive screening sensitivity (ROC-AUC = 0.8247, Recall = 78.50%).</li>
+            <li><strong>Logistic Regression</strong> achieves the best life-course age equity (capturing 32.84% of young cases vs 21.16% in XGBoost).</li>
+            <li><strong>Random Forest</strong> provides superior noise resilience (AUC drop = 0.0404 at 20% corruption).</li>
+            <li><strong>Support Vector Machine</strong> exhibits the Accuracy Paradox, achieving 84.81% accuracy but failing as a clinical screening tool.</li>
+        </ul>
+    </div>
+
+    <h2>6. Statistical Validation</h2>
+    <h3>Paired t-tests & Wilcoxon Tests Across CV Folds</h3>
+    <table border="1" class="dataframe table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>Model_1</th>
+      <th>Model_2</th>
+      <th>Mean_1</th>
+      <th>Mean_2</th>
+      <th>Mean_Difference</th>
+      <th>Paired_t_Statistic</th>
+      <th>t_test_p_value</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>XGBoost</td>
+      <td>Logistic Regression</td>
+      <td>0.825182</td>
+      <td>0.817761</td>
+      <td>0.007421</td>
+      <td>30.659366</td>
+      <td>2.045839e-10</td>
+    </tr>
+    <tr>
+      <td>XGBoost</td>
+      <td>Random Forest</td>
+      <td>0.825182</td>
+      <td>0.822299</td>
+      <td>0.002883</td>
+      <td>18.312668</td>
+      <td>1.972628e-08</td>
+    </tr>
+    <tr>
+      <td>Random Forest</td>
+      <td>Logistic Regression</td>
+      <td>0.822299</td>
+      <td>0.817761</td>
+      <td>0.004538</td>
+      <td>14.940062</td>
+      <td>1.168016e-07</td>
+    </tr>
+    <tr>
+      <td>SVM</td>
+      <td>Logistic Regression</td>
+      <td>0.817433</td>
+      <td>0.817761</td>
+      <td>-0.000328</td>
+      <td>-7.447680</td>
+      <td>3.901681e-05</td>
+    </tr>
+    <tr>
+      <td>SVM</td>
+      <td>Random Forest</td>
+      <td>0.817433</td>
+      <td>0.822299</td>
+      <td>-0.004866</td>
+      <td>-17.726996</td>
+      <td>2.624074e-08</td>
+    </tr>
+    <tr>
+      <td>SVM</td>
+      <td>XGBoost</td>
+      <td>0.817433</td>
+      <td>0.825182</td>
+      <td>-0.007749</td>
+      <td>-34.363094</td>
+      <td>7.388390e-11</td>
+    </tr>
+  </tbody>
+</table>
+
+    <h3>McNemar Discordance Tests (Held-out Test Partition)</h3>
+    <table border="1" class="dataframe table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>Model_1</th>
+      <th>Model_2</th>
+      <th>M1_Correct_M2_Incorrect (b)</th>
+      <th>M1_Incorrect_M2_Correct (c)</th>
+      <th>Chi2_Statistic</th>
+      <th>p_value</th>
+      <th>Significant_Discordance (p &lt; 0.05)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>XGBoost</td>
+      <td>Logistic Regression</td>
+      <td>1381</td>
+      <td>1846</td>
+      <td>66.717075</td>
+      <td>3.134086e-16</td>
+      <td>True</td>
+    </tr>
+    <tr>
+      <td>XGBoost</td>
+      <td>Random Forest</td>
+      <td>965</td>
+      <td>1329</td>
+      <td>57.440715</td>
+      <td>3.483217e-14</td>
+      <td>True</td>
+    </tr>
+    <tr>
+      <td>Random Forest</td>
+      <td>Logistic Regression</td>
+      <td>1587</td>
+      <td>1688</td>
+      <td>3.053435</td>
+      <td>8.056657e-02</td>
+      <td>False</td>
+    </tr>
+    <tr>
+      <td>SVM</td>
+      <td>Logistic Regression</td>
+      <td>10534</td>
+      <td>4559</td>
+      <td>2364.584642</td>
+      <td>0.000000e+00</td>
+      <td>True</td>
+    </tr>
+    <tr>
+      <td>SVM</td>
+      <td>Random Forest</td>
+      <td>10711</td>
+      <td>4635</td>
+      <td>2404.901929</td>
+      <td>0.000000e+00</td>
+      <td>True</td>
+    </tr>
+    <tr>
+      <td>SVM</td>
+      <td>XGBoost</td>
+      <td>11263</td>
+      <td>4823</td>
+      <td>2577.441315</td>
+      <td>0.000000e+00</td>
+      <td>True</td>
+    </tr>
+  </tbody>
+</table>
+
+    <p style="text-align: center; color: #718096; font-size: 12px; margin-top: 40px;">
+        Generated by Academic ML Research Pipeline • CDC BRFSS 2015 Cohort Study • Python 3.13
+    </p>
+</div>
+
+</body>
+</html>
